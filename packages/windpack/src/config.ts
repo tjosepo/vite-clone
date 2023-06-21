@@ -1,15 +1,15 @@
 import { join } from "node:path";
 import { cwd } from "node:process";
-import { AnyZodObject, ZodError, z } from "zod";
-import swc, { Config } from "@swc/core";
+import { ZodError, z } from "zod";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { Configuration } from "webpack";
 import pc from "picocolors";
 import * as esbuild from "esbuild";
 import { createRequire } from "node:module";
 import { resolve as importMetaResolve} from 'import-meta-resolve'
+import { readNearestPackageJson } from "./package.js";
+import { cwdURL } from "./utils.js";
 
 export const resolve = (path: string, base: string = cwd()) => join(base, path);
 
@@ -91,13 +91,11 @@ function printConfigError(error: ZodError<UserConfig>) {
   process.exit(1);
 }
 
-export async function findDefaultConfig(): Promise<string | undefined> {
-  const defaultName = "windpack.config";
-  const extensions = [".ts", ".js"];
-
+export async function findDefaultConfig() {
+  const extensions = [".ts", ".js", ".mts", ".mjs", ".cts", ".cjs"];
+  const dir = cwdURL();
   for (const ext of extensions) {
-    const filename = defaultName + ext;
-    const filepath = join(cwd(), filename);
+    const filepath = new URL("./windpack.config" + ext, dir);
     if (existsSync(filepath)) {
       return filepath;
     }
@@ -106,15 +104,26 @@ export async function findDefaultConfig(): Promise<string | undefined> {
   return undefined;
 }
 
-export async function readUserConfigFile(sourcefile: string) {
-  const outdir = join(cwd(), "node_modules", ".windpack");
-  const outfile = join(outdir, "config.mjs");
+export async function readUserConfigFile(sourcefile: string | URL) {
+  const file = fileURLToPath(sourcefile);
 
-  await esbuild.build({
-    entryPoints: [sourcefile],
-    outfile,
+  let isESM = false;
+  if (file.endsWith(".mjs") || file.endsWith(".mts")) {
+    isESM = true;
+  } else if (file.endsWith(".cjs") || file.endsWith(".cts")) {
+    isESM = false;
+  } else {
+    const packageData = readNearestPackageJson(file);
+    if (packageData) {
+      isESM = packageData.data.type === "module";
+    }
+  }
+
+  const result = await esbuild.build({
+    entryPoints: [file],
     bundle: true,
-    format: "esm",
+    write: false,
+    format: isESM ? "esm" : "cjs",
     platform: "node",
     target: "node16",
     sourcemap: "inline",
@@ -156,21 +165,34 @@ export async function readUserConfigFile(sourcefile: string) {
       },
     ],
   });
-  // const output = await swc.transform(source, {
-  //   sourceFileName: sourcefile,
-  //   jsc: {
-  //     parser: {
-  //       syntax: "typescript",
-  //       tsx: false,
-  //     },
-  //   },
-  // });
-  // await mkdir(outdir, { recursive: true });
-  // await writeFile(outfile, output.code, { flag: "w" });
-  const module = await import(pathToFileURL(outfile).toString());
-  const maybeConfig = module.default as unknown;
-  validateConfig(maybeConfig);
-  return maybeConfig;
+
+  const text = result.outputFiles![0].text;
+  let config: unknown = null;
+  if (isESM) {
+    try {
+      // Postfix the bundled code with a timestamp to avoid Node's ESM loader cache
+      const configTimestamp = `timestamp:${Date.now()}-${Math.random()
+        .toString(16)
+        .slice(2)}`
+
+      const mod = await import(`data:text/javascript;base64,${Buffer.from(`${text}\n//${configTimestamp}`).toString('base64')}`);
+      config = mod.default
+    } catch (e) {
+      if (e instanceof Error) {
+        throw new Error(`${e.message} at ${sourcefile}`);
+      }
+      throw e;
+    }
+  } else {
+    console.log(pc.red("CommonJS config is not supported yet!\n\n")
+    + "You can either:\n"
+    + `  - Use a ESM config file (e.g. ${pc.cyan("windpack.config.mts")})\n`
+    + `  - Change your package.json type to ${pc.cyan('"module"')}\n`);
+    process.exit(1);
+  }
+
+  validateConfig(config);
+  return config;
 }
 
 export function arraify<T>(target: T | T[]): T[] {

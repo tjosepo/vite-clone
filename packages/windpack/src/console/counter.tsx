@@ -106,7 +106,7 @@ const Console = () => (
     </Static>
     <Compilation />
     <CompilationErrors />
-    <Debug />
+    {/* <Debug /> */}
   </>
 );
 
