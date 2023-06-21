@@ -1,0 +1,9 @@
+{
+  "name": "windpack-monorepo",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "cd ./packages/template && pnpm run dev",
+    "watch": "pnpm run --parallel watch"
+  }
+}

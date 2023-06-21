@@ -1,0 +1,13 @@
+{
+  "include": ["./src/**/*.ts"],
+  "exclude": ["./dist"],
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "strict": true,
+    "outDir": "dist",
+    "module": "ESNext",
+    "moduleResolution": "nodenext",
+    "declaration": true,
+    "allowSyntheticDefaultImports": true
+  }
+}

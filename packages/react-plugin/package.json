@@ -1,0 +1,23 @@
+{
+  "name": "@windpack/react-plugin",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@pmmmwh/react-refresh-webpack-plugin": "^0.5.10",
+    "@svgr/webpack": "^8.0.1"
+  },
+  "devDependencies": {
+    "@tjosepo/windpack": "workspace:*",
+    "@types/node": "^20.3.1",
+    "typescript": "^5.1.3"
+  }
+}
