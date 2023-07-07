@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "cd ./packages/template && pnpm run dev",
+    "build": "cd ./packages/template && pnpm run build",
     "watch": "pnpm run --parallel watch"
   }
 }

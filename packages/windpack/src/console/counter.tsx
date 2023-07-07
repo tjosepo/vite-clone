@@ -5,7 +5,7 @@ import React, {
   useState,
   useSyncExternalStore,
 } from "react";
-import { Box, render, Spacer, Static, Text } from "ink";
+import { Box, render, Spacer, Static, Text, TextProps } from "ink";
 import { CompilationErrors, useErrors } from "./Errors.js";
 import { Debug } from "./Debug.js";
 
@@ -19,14 +19,14 @@ const subscribe = (o: () => void) => {
 };
 
 type State = {
-  compiling: boolean;
+  state: "setup"| "compiling" | "building" | "done" | "clear";
   module: string | undefined;
   time: number;
   url: string;
 };
 
 let state: State = {
-  compiling: false,
+  state: "setup",
   module: undefined,
   url: "",
   time: 0,
@@ -37,7 +37,7 @@ export function setState(fn: (state: State) => State) {
   observers.forEach((o) => o());
 }
 
-const Spinner = () => {
+const Spinner = (props: TextProps) => {
   const [count, setCount] = useState(0);
   const spinner = ["⠾", "⠷", "⠯", "⠟", "⠻", "⠽"];
 
@@ -51,19 +51,40 @@ const Spinner = () => {
     };
   }, []);
 
-  return <Text color="gray">{spinner[count]}</Text>;
+  return <Text color="cyan" {...props}>{spinner[count]}</Text>;
 };
 
 const Compilation = () => {
   const errors = useErrors();
-  const isCompiling = useSyncExternalStore(subscribe, () => state.compiling);
+  const currentState = useSyncExternalStore(subscribe, () => state.state);
   const time = useSyncExternalStore(subscribe, () => state.time);
   const url = useSyncExternalStore(subscribe, () => state.url);
 
-  if (isCompiling) {
+  if (currentState === "clear") {
+    return null;
+  }
+
+  if (currentState === "setup") {
     return (
       <Text>
-        <Spinner /> <Text>Compiling...</Text>
+        <Spinner /> <Text >Starting...</Text>
+      </Text>
+    );
+  }
+
+  if (currentState === "compiling") {
+    return (
+      <Text>
+        <Spinner /> <Text >Compiling...</Text>
+      </Text>
+    );
+  }
+
+  
+  if (currentState === "building") {
+    return (
+      <Text>
+        <Spinner /> <Text >Building for production...</Text>
       </Text>
     );
   }

@@ -17,7 +17,8 @@ const notify = () => {
 let _errors: string[] = [];
 
 export function setError(...errors: string[]) {
-  _errors = errors;
+  const uniqueErrors = [...new Set(errors)].filter(Boolean);
+  _errors = uniqueErrors;
   notify();
 }
 

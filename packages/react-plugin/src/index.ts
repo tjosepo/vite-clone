@@ -7,10 +7,7 @@ const require = createRequire(import.meta.url);
 export default function react(): Plugin {
   return {
     name: "windpack-react",
-    config: (_, {mode}) => {
-  console.log("heheh here is a plugin");
-    
-      return {
+    config: (_, {mode}) => ({
       devServer: {
       },
       webpackConfig: {
@@ -26,6 +23,6 @@ export default function react(): Plugin {
           ]
         }
       }
-    }}
+    })
   }
 }

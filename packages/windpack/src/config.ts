@@ -10,6 +10,7 @@ import { createRequire } from "node:module";
 import { resolve as importMetaResolve} from 'import-meta-resolve'
 import { readNearestPackageJson } from "./package.js";
 import { cwdURL } from "./utils.js";
+import { setState } from "./console/counter.js";
 
 export const resolve = (path: string, base: string = cwd()) => join(base, path);
 
@@ -83,10 +84,11 @@ export function validateConfig(config: unknown): asserts config is UserConfig {
 }
 
 function printConfigError(error: ZodError<UserConfig>) {
-  let message = "Invalid windpack config:\n";
-  for (const err of error.errors) {
-    message += `  - ${pc.cyan(err.path.join("."))}: ${err.message}\n`;
-  }
+  setState(state => ({ ...state, state: "clear"}));
+  let message = "Invalid configuration:\n";
+  message += error.errors.map(err => (
+    `  - ${pc.cyan(err.path.join("."))}: ${err.message}`
+  )).join("\n");
   console.error(message);
   process.exit(1);
 }
@@ -135,6 +137,7 @@ export async function readUserConfigFile(sourcefile: string | URL) {
             if (args.kind === "entry-point") {
               return;
             }
+
             
             if (args.kind === "require-call") {
               const resolved = createRequire(args.importer).resolve(args.path);
@@ -184,10 +187,10 @@ export async function readUserConfigFile(sourcefile: string | URL) {
       throw e;
     }
   } else {
-    console.log(pc.red("CommonJS config is not supported yet!\n\n")
-    + "You can either:\n"
+    setState(state => ({ ...state, state: "clear"}));
+    console.log("CommonJS configuration is not supported. You can either:\n"
     + `  - Use a ESM config file (e.g. ${pc.cyan("windpack.config.mts")})\n`
-    + `  - Change your package.json type to ${pc.cyan('"module"')}\n`);
+    + `  - Change your package.json type to ${pc.cyan('"module"')}`);
     process.exit(1);
   }
 

@@ -7,6 +7,8 @@ export default defineConfig({
     port: 3001,
   },
   webpackConfig: {
-    entry: "./src/index.tsx",
-  },
+    entry: {
+      main: "./src/index.tsx",
+    }
+  }
 });

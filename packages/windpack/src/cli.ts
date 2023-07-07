@@ -1,20 +1,23 @@
 import Webpack from "webpack";
 import WebpackDevServer from "webpack-dev-server";
-import { findDefaultConfig, parseConfig, validateConfig, readUserConfigFile, mergeConfig } from "./config.js";
+import { findDefaultConfig, parseConfig, readUserConfigFile, mergeConfig } from "./config.js";
 import { join } from "node:path";
 import HtmlWebpackPlugin from "html-webpack-plugin";
 import { createRequire } from "node:module";
+import counter from "./console/counter.js";
+import { setState } from "./console/counter.js";
+import { clearErrors, setError } from "./console/Errors.js";
+import { debug } from "./console/Debug.js";
+import { cwd } from "node:process";
+import type { Config as SwcConfig  } from "@swc/core";
+import { printCompilationOutput } from "./utils.js";
 
 const require = createRequire(import.meta.url);
 
-import { FileListPlugin} from './plugins/file-list.js'
-import type { Config as SwcConfig  } from "@swc/core";
 
 let start = performance.now();
 
 const build = process.argv.includes("build");
-
-
 
 async function main() {
   let firstBuildDone = false;
@@ -71,9 +74,12 @@ async function main() {
         "import.meta.env.DEV": config.mode === "development",
         ...config.define,
       }),
-      new FileListPlugin({
-        outputFile: 'my-assets.md',
-      }),
+      // new FileListPlugin({
+      //   outputFile: 'my-assets.md',
+      // }),
+      // new SpaWebpackPlugin({
+      //   indexHtml: "index.html"
+      // }),
       ...(config.webpackConfig.plugins || [])
     ],
     module: {
@@ -123,7 +129,9 @@ async function main() {
     },
     stats: "none",
     output: {
-      filename: "[name].bundle.js",
+      clean: true,
+      assetModuleFilename: "assets/[name]-[contenthash][ext]",
+      filename: "assets/[name]-[contenthash].js",
       pathinfo: false,
   },
   optimization: {
@@ -143,21 +151,20 @@ async function main() {
   }
   });
 
-  compiler.hooks.failed.tap("Windpack", (reason) => {
-    console.log("FAILED", reason);
-  });
-
   compiler.hooks.watchRun.tap("Windpack", () => {
     if (firstBuildDone) {
       start = performance.now();
     }
   });
 
-  compiler.hooks.done.tap("Windpack", () => {
+  compiler.hooks.done.tap("Windpack", (stats) => {
     const time = (performance.now() - start).toFixed(0);
     firstBuildDone = true;
-    setState((state) => ({ ...state, compiling: false, time: Number(time) }));
+    setState((state) => ({ ...state, state: "done", time: Number(time) }));
     debug(`Compiled in ${time}ms`);
+    if (build) {
+      printCompilationOutput(stats);
+    }
   });
 
   const url = `http://localhost:${config.server.port}${
@@ -168,6 +175,11 @@ async function main() {
 
   compiler.hooks.compilation.tap("Windpack", (compilation) => {
     debug("Starting a new compilation...")
+    if (build) {
+      setState((state) => ({ ...state, state: "building" }));
+    } else {
+      setState((state) => ({ ...state, state: "compiling" }));
+    }
     clearErrors();
 
     compilation.hooks.processErrors.tap("Windpack", (errors) => {
@@ -176,6 +188,7 @@ async function main() {
     });
   });
 
+  debug("Created compiler")
 
   if (build) {
     return compiler.run((err, stats) => {
@@ -197,15 +210,11 @@ async function main() {
   server.startCallback(() => {
     debug("Starting the development server...");
   });
+
+  debug("Created server")
 }
 
-import counter from "./console/counter.js";
-import { setState } from "./console/counter.js";
-import { clearErrors, setError } from "./console/Errors.js";
-import { debug } from "./console/Debug.js";
-setState((state) => ({ ...state, compiling: true }));
 counter();
 main();
 
-import { cwd } from "node:process";
 // const worker = new Worker(new URL('./worker.js', import.meta.url));
